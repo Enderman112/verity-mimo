@@ -29,7 +29,6 @@ import varmite.verity.entity.verity.VerityEntity;
 
 public final class MimoTtsService {
     private static final String MODEL_ID = "mimo-v2.5-tts";
-    private static final String DEFAULT_BASE_URL = "https://api.xiaomimimo.com/v1";
     private static final Map<String, String> VARIANT_STYLES = Map.ofEntries(
         Map.entry("happy", "\u7528\u5f00\u5fc3\u6109\u5feb\u7684\u8bed\u6c14\uff0c\u58f0\u97f3\u660e\u4eae\u6709\u6d3b\u529b\u3002"),
         Map.entry("happy_talking", "\u7528\u5f00\u5fc3\u6109\u5feb\u7684\u8bed\u6c14\uff0c\u58f0\u97f3\u660e\u4eae\u6709\u6d3b\u529b\u3002"),
@@ -75,7 +74,7 @@ public final class MimoTtsService {
                 }
                 String style = MimoTtsService.buildStyleInstruction(verity);
                 JsonObject body = MimoTtsService.buildRequestBody(text, style, voice);
-                String apiUrl = MimoTtsService.apiUrl();
+                String apiUrl = MimoDirectConfig.resolveApiUrl();
                 HttpRequest request = HttpRequest.newBuilder().uri(URI.create(apiUrl + "/chat/completions")).timeout(Duration.ofSeconds(90L)).header("api-key", apiKey).header("Authorization", "Bearer " + apiKey).header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(body.toString())).build();
                 HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30L)).build();
                 HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
@@ -144,18 +143,6 @@ public final class MimoTtsService {
             System.err.println("[Verity MiMo TTS] Failed to play audio.");
             e.printStackTrace();
         }
-    }
-
-    private static String apiUrl() {
-        String base = (String) MimoDirectConfig.MIMO_BASE_URL.get();
-        if (base == null || base.isBlank()) {
-            return DEFAULT_BASE_URL;
-        }
-        String trimmed = base.trim();
-        while (trimmed.endsWith("/")) {
-            trimmed = trimmed.substring(0, trimmed.length() - 1);
-        }
-        return trimmed;
     }
 
     private static JsonObject buildRequestBody(String text, String style, String voice) {

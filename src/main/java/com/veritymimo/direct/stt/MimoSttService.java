@@ -21,7 +21,6 @@ import varmite.verity.VerityConfig;
 
 public final class MimoSttService {
     private static final String MODEL_ID = "mimo-v2.5-asr";
-    private static final String DEFAULT_BASE_URL = "https://api.xiaomimimo.com/v1";
 
     private MimoSttService() {
     }
@@ -49,11 +48,7 @@ public final class MimoSttService {
             }
             String dataUrl = "data:audio/wav;base64," + Base64.getEncoder().encodeToString(wavData);
             JsonObject body = MimoSttService.buildRequestBody(dataUrl);
-            String base = (String) MimoDirectConfig.MIMO_BASE_URL.get();
-            String apiUrl = base == null || base.isBlank() ? DEFAULT_BASE_URL : base;
-            while (apiUrl.endsWith("/")) {
-                apiUrl = apiUrl.substring(0, apiUrl.length() - 1);
-            }
+            String apiUrl = MimoDirectConfig.resolveApiUrl();
             HttpRequest request = HttpRequest.newBuilder().uri(URI.create(apiUrl + "/chat/completions")).timeout(Duration.ofSeconds(60L)).header("api-key", apiKey).header("Authorization", "Bearer " + apiKey).header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(body.toString())).build();
             HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30L)).build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());

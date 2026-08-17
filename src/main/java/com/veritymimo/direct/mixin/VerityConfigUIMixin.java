@@ -6,6 +6,7 @@ import dev.isxander.yacl3.api.Option;
 import dev.isxander.yacl3.api.OptionDescription;
 import dev.isxander.yacl3.api.YetAnotherConfigLib;
 import dev.isxander.yacl3.api.controller.DoubleSliderControllerBuilder;
+import dev.isxander.yacl3.api.controller.EnumControllerBuilder;
 import dev.isxander.yacl3.api.controller.StringControllerBuilder;
 import dev.isxander.yacl3.api.controller.TickBoxControllerBuilder;
 import net.minecraft.network.chat.Component;
@@ -38,7 +39,9 @@ public abstract class VerityConfigUIMixin {
 
     private static ConfigCategory mimoCategory() {
         ConfigCategory.Builder b = ConfigCategory.createBuilder().name(Component.m_237113_("Xiaomi MiMo"));
-        b = b.option(Option.<String>createBuilder().name(Component.m_237113_("MiMo API Key")).description(OptionDescription.of(Component.m_237113_("API key from https://platform.xiaomimimo.com/#/console/api-keys"))).binding("", MimoDirectConfig.MIMO_API_KEY, arg_0 -> MimoDirectConfig.MIMO_API_KEY.set(arg_0)).controller(StringControllerBuilder::create).build());
+        b = b.option(Option.<String>createBuilder().name(Component.m_237113_("MiMo API Key")).description(OptionDescription.of(Component.m_237113_("API key from https://platform.xiaomimimo.com/#/console/api-keys. Pay-as-you-go keys start with sk-, Token Plan keys with tp-."))).binding("", MimoDirectConfig.MIMO_API_KEY, arg_0 -> MimoDirectConfig.MIMO_API_KEY.set(arg_0)).controller(StringControllerBuilder::create).build());
+        b = b.option(Option.<MimoDirectConfig.MimoPlan>createBuilder().name(Component.m_237113_("MiMo Plan")).description(OptionDescription.of(Component.m_237113_("\u6309\u91cf\u4ed8\u8d39 (sk- keys) or Token Plan (tp- keys)."))).binding(MimoDirectConfig.MimoPlan.PAYG, MimoDirectConfig.MIMO_PLAN, arg_0 -> MimoDirectConfig.MIMO_PLAN.set(arg_0)).controller(opt -> EnumControllerBuilder.create(opt).enumClass(MimoDirectConfig.MimoPlan.class)).build());
+        b = b.option(Option.<MimoDirectConfig.MimoCluster>createBuilder().name(Component.m_237113_("MiMo Cluster (Token Plan)")).description(OptionDescription.of(Component.m_237113_("\u4e2d\u56fd / \u65b0\u52a0\u5761 / \u6b27\u6d32 — only used when plan is Token Plan."))).binding(MimoDirectConfig.MimoCluster.CN, MimoDirectConfig.MIMO_CLUSTER, arg_0 -> MimoDirectConfig.MIMO_CLUSTER.set(arg_0)).controller(opt -> EnumControllerBuilder.create(opt).enumClass(MimoDirectConfig.MimoCluster.class)).build());
         b = b.option(Option.<Boolean>createBuilder().name(Component.m_237113_("Enable MiMo TTS")).description(OptionDescription.of(Component.m_237113_("Fallback activation. Normal way: pick MIMO in Verity's Text To Speech Provider."))).binding(false, MimoDirectConfig.ENABLE_MIMO_TTS, arg_0 -> MimoDirectConfig.ENABLE_MIMO_TTS.set(arg_0)).controller(TickBoxControllerBuilder::create).build());
         b = b.option(Option.<Boolean>createBuilder().name(Component.m_237113_("Enable MiMo ASR")).description(OptionDescription.of(Component.m_237113_("Fallback activation. Normal way: pick MIMO in Verity's Recognition Provider."))).binding(false, MimoDirectConfig.ENABLE_MIMO_ASR, arg_0 -> MimoDirectConfig.ENABLE_MIMO_ASR.set(arg_0)).controller(TickBoxControllerBuilder::create).build());
         b = b.option(Option.<String>createBuilder().name(Component.m_237113_("MiMo TTS Voice")).description(OptionDescription.of(Component.m_237113_("Chinese male: \u82cf\u6253 (Soda) / \u767d\u6866 (Baihua). Chinese female: \u51b0\u7cd6 (Bingtang) / \u8309\u8389 (Moliy). English: Mia, Chloe, Milo, Dean."))).binding("\u82cf\u6253", MimoDirectConfig.MIMO_TTS_VOICE, arg_0 -> MimoDirectConfig.MIMO_TTS_VOICE.set(arg_0)).controller(StringControllerBuilder::create).build());
