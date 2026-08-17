@@ -23,7 +23,6 @@ import varmite.verity.entity.verity.VerityEntity;
 
 public final class MimoTtsService {
     private static final String MODEL_ID = "mimo-v2.5-tts";
-    private static final String DEFAULT_BASE_URL = "https://api.xiaomimimo.com/v1";
 
     private MimoTtsService() {
     }
@@ -49,7 +48,7 @@ public final class MimoTtsService {
                 return;
             }
             JsonObject body = MimoTtsService.buildRequestBody(stripped, emotion, voiceId);
-            HttpRequest request = HttpRequest.newBuilder().uri(URI.create(MimoTtsService.apiUrl() + "/chat/completions")).timeout(Duration.ofSeconds(90L)).header("api-key", apiKey).header("Authorization", "Bearer " + apiKey).header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(body.toString())).build();
+            HttpRequest request = HttpRequest.newBuilder().uri(URI.create(MimoAddonConfig.resolveApiUrl() + "/chat/completions")).timeout(Duration.ofSeconds(90L)).header("api-key", apiKey).header("Authorization", "Bearer " + apiKey).header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(body.toString())).build();
             HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30L)).build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 200) {
@@ -84,18 +83,6 @@ public final class MimoTtsService {
             MimoNotifier.notify(player, "Verity MiMo TTS connection failed: " + MimoTtsService.truncate(String.valueOf(e.getMessage())));
             e.printStackTrace();
         }
-    }
-
-    private static String apiUrl() {
-        String base = (String) MimoAddonConfig.MIMO_BASE_URL.get();
-        if (base == null || base.isBlank()) {
-            return DEFAULT_BASE_URL;
-        }
-        String trimmed = base.trim();
-        while (trimmed.endsWith("/")) {
-            trimmed = trimmed.substring(0, trimmed.length() - 1);
-        }
-        return trimmed;
     }
 
     private static JsonObject buildRequestBody(String text, String emotion, String voiceId) {
