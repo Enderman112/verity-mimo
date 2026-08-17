@@ -1,0 +1,47 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="MIT"
+
+[[mods]]
+modId="verity_mimo_direct"
+version="1.0.0"
+displayName="Verity MiMo Direct"
+authors="Enderman112"
+description='''Adds Xiaomi MiMo TTS and ASR directly to Verity (no Smiley's Better Voice involved).
+
+- MiMo TTS: new "MIMO" option in Verity's Text To Speech Provider
+- MiMo ASR: new "MIMO" option in Verity's Recognition Provider (Chinese/English)
+- All MiMo settings appear in Verity's own config menu (new "Xiaomi MiMo" category)
+
+Get a MiMo API key at https://platform.xiaomimimo.com/#/console/api-keys'''
+
+[[mixins]]
+config="verity_mimo_direct.mixins.json"
+
+[[dependencies.verity_mimo_direct]]
+modId="forge"
+mandatory=true
+versionRange="[47,)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.verity_mimo_direct]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.20.1,1.21)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.verity_mimo_direct]]
+modId="verity"
+mandatory=true
+versionRange="[6.0.0-beta,7)"
+ordering="BEFORE"
+side="BOTH"
+
+[[dependencies.verity_mimo_direct]]
+modId="yet_another_config_lib_v3"
+mandatory=true
+versionRange="[3.0,)"
+ordering="NONE"
+side="CLIENT"
