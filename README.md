@@ -1,41 +1,28 @@
-# Verity MiMo
+# Verity MiMo Addon
 
-给 **Verity JE（1.20.1）** 增加小米 MiMo 语音（TTS 合成 + ASR 语音识别）的两个附加 mod（纯 Mixin 方案，**不改动原 mod**）。
+一个独立的 Forge 附加 mod（单 jar），给 **Verity 6.0.0-beta.5** 和 **Smiley's Better Voice 6.0.0** 增加小米 MiMo 的 TTS 与 ASR，**不改动这两个 mod 本身**。
 
-> 两个分支对应两种接入方式，二选一。获取 MiMo API key：https://platform.xiaomimimo.com/#/console/api-keys
+## 原理
 
-## 分支
-
-| 分支 | 依赖 | TTS 接入 | ASR 接入 | 设置入口 | 特点 |
-|---|---|---|---|---|---|
-| [`addon`](https://github.com/Enderman112/verity-mimo/tree/addon) | Verity + Smiley's Better Voice | BetterVoice 播放管线 | Verity | addon 自己的配置界面 | 带文字流同步、口型（BetterVisuals）、打断管理 |
-| [`direct`](https://github.com/Enderman112/verity-mimo/tree/direct) | 仅 Verity | verity 自己的 `AiAPI.playTTS` | Verity | **Verity 配置菜单**里的 "Xiaomi MiMo" 分类 | 最简、不装 BetterVoice，带 3D 空间音效 |
-
-### 怎么选
-
-- 想要"角色扮演感"完整（嘴型、聊天逐字同步、说话打断管理）→ **addon**
-- 想要最简、少装一个 mod → **direct**
-
-两个分支里都包含完整源码、构建脚本和编译好的 jar。
-
-## 用法（以 direct 为例）
-
-1. 把 `Verity-MiMo-Direct.jar` 放进 mods（需 Forge 47.x、YACL、Verity 6.0.0-beta.5+）。
-2. 打开 Verity 配置界面 → **Xiaomi MiMo** 分类：填 MiMo API Key，打开 `Enable MiMo TTS` / `Enable MiMo ASR`，选音色（默认 `苏打` 中文男声）、ASR 语言（`zh`）。
-3. 保存即可。MiMo 接管 TTS 和 ASR。
-
-addon 分支的用法见该分支 README。
+- 纯 Mixin 方案，两个原 mod 保持原样，版权安全。
+- 通过 `EnumHelper.addEnum` 给原 mod 的 `TtsProvider` / `STTProvider` 枚举动态增加 `MIMO` 选项（失败会自动降级，不影响游戏）。
+- Mixin 钩子：
+  - TTS：`BetterVoiceTtsService.play`（HEAD，cancellable）——选中 MIMO 时转走本 mod 的 `MimoTtsService`
+  - ASR：`AiAPI.transcribeAudio`（HEAD，cancellable）——选中 MIMO 时转走本 mod 的 `MimoSttService`
 
 ## 构建
 
-任一分支内执行：
-
 ```bash
-./build.sh     # 需要 JDK 17+，编译期依赖在 build/lib/
+./build.sh          # 产出 Verity-MiMo-Addon.jar
 ```
 
-## 说明
+需要 JDK 17+。编译期依赖在 `build/lib/`（gson / cloth-config / mixin / annotations / guava），运行期由游戏提供。
 
-- 编译产物 / jar 不含任何原 mod 代码，仅本仓库代码。
-- 音色列表：中文男 `苏打` / `白桦`，中文女 `冰糖` / `茉莉`，英文 `Mia` / `Chloe` / `Milo` / `Dean`，或 `mimo_default`。
-- MiMo 按量付费 base URL 默认 `https://api.xiaomimimo.com/v1`；Token Plan 用户填 `https://token-plan-cn.xiaomimimo.com/v1`。
+## 安装
+
+1. 把 `Verity-MiMo-Addon.jar` 放进 mods 目录（需已装 Forge 47.x、Cloth Config、Verity、Smiley's Better Voice）。
+2. 首次进入后配置 `config/verity_mimo-common.toml`（或在 Mods 列表里打开本 mod 的 Config 界面）：
+   - `mimoApiKey`：MiMo API key（https://platform.xiaomimimo.com/#/console/api-keys）
+   - `mimoTtsVoice`：预置音色，默认 `苏打`（中文男声）；可用 `白桦`、`冰糖`、`茉莉`、`Mia`、`Chloe`、`Milo`、`Dean`
+   - `mimoSttLanguage`：`zh` / `en` / `auto`
+3. 二选一启用（原生方式：在 Verity/Smiley's Better Voice 配置里把对应 Provider 选成 **MIMO**；或兜底：打开本 mod 的 `enableMimoTts` / `enableMimoAsr` 开关）。
