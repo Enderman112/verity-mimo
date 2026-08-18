@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.veritymimo.direct.MimoDirectNotifier;
+import com.veritymimo.direct.VerityApi;
 import com.veritymimo.direct.config.MimoDirectConfig;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
@@ -24,7 +25,6 @@ import javax.sound.sampled.DataLine;
 import javax.sound.sampled.SourceDataLine;
 import net.minecraft.world.entity.player.Player;
 import varmite.verity.VerityConfig;
-import varmite.verity.entity.llm.AiAPI;
 import varmite.verity.entity.verity.VerityEntity;
 
 public final class MimoTtsService {
@@ -60,7 +60,7 @@ public final class MimoTtsService {
             return;
         }
         CompletableFuture.runAsync(() -> {
-            AiAPI.cancelCurrentSpeech = false;
+            VerityApi.setCancelRequested(false);
             try {
                 String apiKey = (String) MimoDirectConfig.MIMO_API_KEY.get();
                 if (apiKey == null || apiKey.isBlank()) {
@@ -119,14 +119,14 @@ public final class MimoTtsService {
                 byte[] buffer = new byte[4096];
                 int bytesRead;
                 while ((bytesRead = audioStream.read(buffer)) != -1) {
-                    if (AiAPI.cancelCurrentSpeech) {
+                    if (VerityApi.isCancelRequested()) {
                         line.flush();
                         break;
                     }
-                    AiAPI.apply3DEffect(line, player, verity);
+                    VerityApi.apply3DEffect(line, player, verity);
                     line.write(buffer, 0, bytesRead);
                 }
-                if (!AiAPI.cancelCurrentSpeech) {
+                if (!VerityApi.isCancelRequested()) {
                     line.drain();
                 }
             }

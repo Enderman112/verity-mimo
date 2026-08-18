@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Pseudo
-@Mixin(targets = "varmite.verity.entity.llm.AiAPI", remap = false)
+@Mixin(targets = {"varmite.verity.entity.llm.AiAPI", "varmite.verity.entity.LLM.AiAPI"}, remap = false)
 public abstract class AiAPITranscribeMixin {
     @Inject(method = "transcribeAudio", at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private static void mimo$transcribe(byte[] pcmData, AudioFormat format, CallbackInfoReturnable<String> cir) {
