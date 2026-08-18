@@ -38,7 +38,8 @@ public final class MimoSttService {
                 wavData = baos.toByteArray();
             }
             double seconds = pcmData.length / (double) (format.getSampleRate() * format.getFrameSize());
-            System.out.println("[Verity MiMo ASR] captured " + pcmData.length + " bytes (" + String.format("%.1f", seconds) + "s @ " + format.getSampleRate() + "Hz) -> wav " + wavData.length + " bytes");
+            String sttLang = (String) MimoAddonConfig.MIMO_STT_LANGUAGE.get();
+            System.out.println("[Verity MiMo ASR] captured " + pcmData.length + " bytes (" + String.format("%.1f", seconds) + "s @ " + format.getSampleRate() + "Hz, lang=" + (sttLang == null ? "null" : sttLang) + ") -> wav " + wavData.length + " bytes");
             String apiKey = MimoAddonConfig.MIMO_API_KEY.get();
             if (apiKey == null || apiKey.isBlank()) {
                 System.err.println("[Verity MiMo] MiMo API key not set. See the Xiaomi MiMo category in Verity's config.");
