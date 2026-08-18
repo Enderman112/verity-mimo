@@ -26,6 +26,7 @@ public final class MimoSttService {
 
     public static String transcribe(byte[] pcmData, AudioFormat format) {
         if (pcmData == null || pcmData.length == 0 || format == null || format.getFrameSize() <= 0) {
+            System.err.println("[Verity MiMo ASR] empty/invalid recording (pcm=" + (pcmData == null ? "null" : String.valueOf(pcmData.length)) + " bytes, format=" + (format == null ? "null" : format.toString()) + ")");
             return "";
         }
         try {
@@ -36,25 +37,36 @@ public final class MimoSttService {
                 AudioSystem.write(ais, AudioFileFormat.Type.WAVE, baos);
                 wavData = baos.toByteArray();
             }
-            String apiKey = (String) MimoAddonConfig.MIMO_API_KEY.get();
+            double seconds = pcmData.length / (double) (format.getSampleRate() * format.getFrameSize());
+            System.out.println("[Verity MiMo ASR] captured " + pcmData.length + " bytes (" + String.format("%.1f", seconds) + "s @ " + format.getSampleRate() + "Hz) -> wav " + wavData.length + " bytes");
+            String apiKey = MimoAddonConfig.MIMO_API_KEY.get();
             if (apiKey == null || apiKey.isBlank()) {
-                System.err.println("[Verity MiMo] MiMo API key not set. Add it in the Verity MiMo Addon config screen.");
+                System.err.println("[Verity MiMo] MiMo API key not set. See the Xiaomi MiMo category in Verity's config.");
                 return "";
             }
-            String dataUrl = "data:audio/wav;base64," + Base64.getEncoder().encodeToString(wavData);
+            String base64 = Base64.getEncoder().encodeToString(wavData);
+            if (base64.length() > 10 * 1024 * 1024) {
+                System.err.println("[Verity MiMo ASR] audio too large (" + (base64.length() / 1024 / 1024) + "MB base64, MiMo limit 10MB). Recording was too long.");
+                return "";
+            }
+            String dataUrl = "data:audio/wav;base64," + base64;
             JsonObject body = MimoSttService.buildRequestBody(dataUrl);
             String apiUrl = MimoAddonConfig.resolveApiUrl();
             HttpRequest request = HttpRequest.newBuilder().uri(URI.create(apiUrl + "/chat/completions")).timeout(Duration.ofSeconds(60L)).header("api-key", apiKey).header("Authorization", "Bearer " + apiKey).header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(body.toString())).build();
             HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30L)).build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 200) {
-                System.err.println("[Verity MiMo STT Error]: " + response.statusCode() + " - " + response.body());
+                System.err.println("[Verity MiMo ASR Error]: " + response.statusCode() + " - " + (response.body() == null ? "" : response.body().substring(0, Math.min(200, response.body().length()))));
                 return "";
             }
-            return MimoSttService.extractText(response.body());
+            String result = MimoSttService.extractText(response.body());
+            if (result == null || result.isEmpty()) {
+                System.out.println("[Verity MiMo ASR] no speech detected in audio (empty result).");
+            }
+            return result;
         }
         catch (Exception e) {
-            System.err.println("[Verity MiMo STT] recognition failed.");
+            System.err.println("[Verity MiMo ASR] recognition failed.");
             e.printStackTrace();
             return "";
         }
