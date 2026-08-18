@@ -19,6 +19,7 @@ javac --release 17 -encoding UTF-8 -cp "build/stubs-classes:$CP_LIBS" -d build/c
   $(find "$SRC" -name '*.java')
 
 echo "== packaging jar =="
+rm -f Verity-MiMo-Addon.jar   # remove stale jar first: zip -r would otherwise keep deleted classes
 mkdir -p build/out/META-INF
 printf 'Manifest-Version: 1.0\nMixinConfigs: verity_mimo.mixins.json\n\n' > build/out/META-INF/MANIFEST.MF
 cp -r "$RES"/* build/out/
