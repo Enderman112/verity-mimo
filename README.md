@@ -23,6 +23,7 @@
 1. 把 `Verity-MiMo-Addon.jar` 放进 mods 目录（需已装 Forge 47.x、Cloth Config、Verity、Smiley's Better Voice）。
 2. 首次进入后配置 `config/verity_mimo-common.toml`（或在 Mods 列表里打开本 mod 的 Config 界面）：
    - `mimoApiKey`：MiMo API key（https://platform.xiaomimimo.com/#/console/api-keys）
-   - `mimoTtsVoice`：预置音色，默认 `苏打`（中文男声）；可用 `白桦`、`冰糖`、`茉莉`、`Mia`、`Chloe`、`Milo`、`Dean`
+   - `mimoVoiceMode`：`MIMO_PRESET`（默认，用下面的预置音色）或 `VERITY_CLONE`（**克隆 Verity 游戏内的 intro 语音**，走 `mimo-v2.5-tts-voiceclone`，参考音频已内置于 mod）
+   - `mimoTtsVoice`：预置音色，默认 `苏打`（中文男声）；可用 `白桦`、`冰糖`、`茉莉`、`Mia`、`Chloe`、`Milo`、`Dean`（仅 MIMO_PRESET 模式生效）
    - `mimoSttLanguage`：`zh` / `en` / `auto`
 3. 二选一启用（原生方式：在 Verity/Smiley's Better Voice 配置里把对应 Provider 选成 **MIMO**；或兜底：打开本 mod 的 `enableMimoTts` / `enableMimoAsr` 开关）。

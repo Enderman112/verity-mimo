@@ -11,6 +11,7 @@ import com.google.gson.JsonParser;
 import com.veritymimo.MimoNotifier;
 import com.veritymimo.config.MimoAddonConfig;
 import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -23,6 +24,9 @@ import varmite.verity.entity.verity.VerityEntity;
 
 public final class MimoTtsService {
     private static final String MODEL_ID = "mimo-v2.5-tts";
+    private static final String MODEL_ID_CLONE = "mimo-v2.5-tts-voiceclone";
+    private static final String CLONE_SAMPLE_PATH = "/assets/verity_mimo/voices/intro.wav";
+    private static String cloneVoiceDataUrl;
 
     private MimoTtsService() {
     }
@@ -34,12 +38,6 @@ public final class MimoTtsService {
             MimoNotifier.notify(player, "Verity MiMo: no API key set. Mods \u2192 Verity MiMo Addon \u2192 paste a key from https://platform.xiaomimimo.com/#/console/api-keys");
             return;
         }
-        String voiceId = (String) MimoAddonConfig.MIMO_TTS_VOICE.get();
-        if (voiceId == null || voiceId.isBlank()) {
-            SpeechPlayback.clearActiveLine(generation);
-            MimoNotifier.notify(player, "Verity MiMo: TTS voice is empty. Set one in the addon config (e.g. \u82cf\u6253).");
-            return;
-        }
         String stripped = EmotionTags.strip(text);
         String emotion = EmotionDetector.detect(stripped, verity);
         try {
@@ -47,7 +45,32 @@ public final class MimoTtsService {
                 SpeechPlayback.clearBusy(generation);
                 return;
             }
-            JsonObject body = MimoTtsService.buildRequestBody(stripped, emotion, voiceId);
+            String modelId;
+            String voiceValue;
+            if (MimoAddonConfig.MIMO_VOICE_MODE.get() == MimoAddonConfig.VoiceMode.VERITY_CLONE) {
+                voiceValue = MimoTtsService.loadCloneVoiceDataUrl();
+                if (voiceValue == null) {
+                    SpeechPlayback.clearActiveLine(generation);
+                    MimoNotifier.notify(player, "Verity MiMo: clone voice sample (intro.wav) not found in the mod jar. Falling back to the preset voice.");
+                    modelId = MODEL_ID;
+                    voiceValue = (String) MimoAddonConfig.MIMO_TTS_VOICE.get();
+                    if (voiceValue == null || voiceValue.isBlank()) {
+                        MimoNotifier.notify(player, "Verity MiMo: TTS voice is empty. Set one in the addon config (e.g. \u82cf\u6253).");
+                        return;
+                    }
+                } else {
+                    modelId = MODEL_ID_CLONE;
+                }
+            } else {
+                modelId = MODEL_ID;
+                voiceValue = (String) MimoAddonConfig.MIMO_TTS_VOICE.get();
+                if (voiceValue == null || voiceValue.isBlank()) {
+                    SpeechPlayback.clearActiveLine(generation);
+                    MimoNotifier.notify(player, "Verity MiMo: TTS voice is empty. Set one in the addon config (e.g. \u82cf\u6253).");
+                    return;
+                }
+            }
+            JsonObject body = MimoTtsService.buildRequestBody(stripped, emotion, voiceValue, modelId);
             HttpRequest request = HttpRequest.newBuilder().uri(URI.create(MimoAddonConfig.resolveApiUrl() + "/chat/completions")).timeout(Duration.ofSeconds(90L)).header("api-key", apiKey).header("Authorization", "Bearer " + apiKey).header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(body.toString())).build();
             HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30L)).build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
@@ -85,9 +108,9 @@ public final class MimoTtsService {
         }
     }
 
-    private static JsonObject buildRequestBody(String text, String emotion, String voiceId) {
+    private static JsonObject buildRequestBody(String text, String emotion, String voiceValue, String modelId) {
         JsonObject root = new JsonObject();
-        root.addProperty("model", MODEL_ID);
+        root.addProperty("model", modelId);
         JsonArray messages = new JsonArray();
         String style = MimoTtsService.buildStyleInstruction(emotion);
         if (style != null && !style.isBlank()) {
@@ -103,10 +126,34 @@ public final class MimoTtsService {
         root.add("messages", (JsonElement) messages);
         JsonObject audio = new JsonObject();
         audio.addProperty("format", "wav");
-        audio.addProperty("voice", voiceId);
+        audio.addProperty("voice", voiceValue);
         root.add("audio", (JsonElement) audio);
         root.addProperty("stream", false);
         return root;
+    }
+
+    private static String loadCloneVoiceDataUrl() {
+        if (cloneVoiceDataUrl != null) {
+            return cloneVoiceDataUrl;
+        }
+        try (InputStream in = MimoTtsService.class.getResourceAsStream(CLONE_SAMPLE_PATH)) {
+            if (in == null) {
+                System.err.println("[Verity MiMo] clone voice sample not found on classpath: " + CLONE_SAMPLE_PATH);
+                return null;
+            }
+            byte[] bytes = in.readAllBytes();
+            if (bytes.length == 0) {
+                System.err.println("[Verity MiMo] clone voice sample is empty: " + CLONE_SAMPLE_PATH);
+                return null;
+            }
+            cloneVoiceDataUrl = "data:audio/wav;base64," + Base64.getEncoder().encodeToString(bytes);
+            System.out.println("[Verity MiMo] clone voice sample loaded (" + bytes.length + " bytes -> " + (cloneVoiceDataUrl.length() / 1024) + "KB data URL).");
+            return cloneVoiceDataUrl;
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     private static String buildStyleInstruction(String emotion) {
