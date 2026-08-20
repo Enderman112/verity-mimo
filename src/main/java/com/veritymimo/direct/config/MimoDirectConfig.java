@@ -14,6 +14,22 @@ public final class MimoDirectConfig {
     public static final ForgeConfigSpec.DoubleValue MIMO_TTS_SPEED;
     public static final ForgeConfigSpec.ConfigValue<String> MIMO_TTS_STYLE;
     public static final ForgeConfigSpec.ConfigValue<String> MIMO_STT_LANGUAGE;
+    public static final ForgeConfigSpec.EnumValue<VoiceMode> MIMO_VOICE_MODE;
+
+    public enum VoiceMode {
+        MIMO_PRESET("MiMo preset voice"),
+        VERITY_CLONE("\u514b\u9686 Verity \u8bed\u97f3 (intro)");
+
+        private final String displayName;
+
+        VoiceMode(String displayName) {
+            this.displayName = displayName;
+        }
+
+        public String displayName() {
+            return this.displayName;
+        }
+    }
 
     public enum MimoPlan {
         PAYG("\u6309\u91cf\u4ed8\u8d39"),
@@ -67,6 +83,7 @@ public final class MimoDirectConfig {
         MIMO_TTS_SPEED = builder.comment("MiMo TTS speech speed (0.5 to 2.0).").defineInRange("mimoTtsSpeed", 1.0, 0.5, 2.0);
         MIMO_TTS_STYLE = builder.comment("Optional natural-language speaking style for MiMo TTS. Leave empty to auto-generate from Verity's expression.").define("mimoTtsStyle", "");
         MIMO_STT_LANGUAGE = builder.comment("MiMo ASR language: zh (Chinese), en (English) or auto.").define("mimoSttLanguage", "zh");
+        MIMO_VOICE_MODE = builder.comment("MiMo TTS voice source: MIMO_PRESET uses the preset voice above; VERITY_CLONE uses the bundled intro.ogg sample (converted to WAV) to clone Verity's in-game voice via the mimo-v2.5-tts-voiceclone model.").defineEnum("mimoVoiceMode", VoiceMode.MIMO_PRESET);
         SPEC = builder.build();
     }
 
