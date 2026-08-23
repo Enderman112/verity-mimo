@@ -4,7 +4,7 @@ license="MIT"
 
 [[mods]]
 modId="verity_mimo"
-version="1.2.0"
+version="1.2.1"
 displayName="Verity MiMo Addon"
 authors="Enderman112"
 description='''Adds Xiaomi MiMo TTS and ASR to Verity + Smiley's Better Voice without modifying either mod.
