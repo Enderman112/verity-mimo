@@ -4,7 +4,7 @@ license="MIT"
 
 [[mods]]
 modId="verity_mimo_direct"
-version="1.2.0"
+version="1.2.1"
 displayName="Verity MiMo Direct"
 authors="Enderman112"
 description='''Adds Xiaomi MiMo TTS and ASR directly to Verity (no Smiley's Better Voice involved).

@@ -8,6 +8,7 @@ import varmite.verity.entity.verity.VerityEntity;
 
 public final class VerityApi {
     private static final String[] CANDIDATES = {
+        "varmite.verity.client.audio.TTSHandler",
         "varmite.verity.entity.llm.AiAPI",
         "varmite.verity.entity.LLM.AiAPI"
     };
