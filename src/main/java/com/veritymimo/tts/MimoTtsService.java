@@ -1,15 +1,13 @@
 package com.veritymimo.tts;
 
-import com.gabe.veritycartesia.tts.EmotionDetector;
-import com.gabe.veritycartesia.tts.SpeechPlayback;
-import com.gabe.veritycartesia.tts.WavPlayer;
-import com.gabe.veritycartesia.util.EmotionTags;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.veritymimo.MimoNotifier;
+import com.veritymimo.VerityApi;
 import com.veritymimo.config.MimoAddonConfig;
+import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.URI;
@@ -19,7 +17,15 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.DataLine;
+import javax.sound.sampled.SourceDataLine;
 import net.minecraft.world.entity.player.Player;
+import varmite.verity.VerityConfig;
 import varmite.verity.entity.verity.VerityEntity;
 
 public final class MimoTtsService {
@@ -27,92 +33,144 @@ public final class MimoTtsService {
     private static final String MODEL_ID_CLONE = "mimo-v2.5-tts-voiceclone";
     private static final String CLONE_SAMPLE_PATH = "/assets/verity_mimo/voices/intro.wav";
     private static String cloneVoiceDataUrl;
+    private static final Map<String, String> VARIANT_STYLES = Map.ofEntries(
+        Map.entry("happy", "\u7528\u5f00\u5fc3\u6109\u5feb\u7684\u8bed\u6c14\uff0c\u58f0\u97f3\u660e\u4eae\u6709\u6d3b\u529b\u3002"),
+        Map.entry("happy_talking", "\u7528\u5f00\u5fc3\u6109\u5feb\u7684\u8bed\u6c14\uff0c\u58f0\u97f3\u660e\u4eae\u6709\u6d3b\u529b\u3002"),
+        Map.entry("happy_sleep", "\u7528\u5e73\u9759\u6e29\u548c\u7684\u8bed\u6c14\uff0c\u8bed\u901f\u8212\u7f13\u3002"),
+        Map.entry("neutral", ""),
+        Map.entry("neutral_talking", ""),
+        Map.entry("evil", "\u7528\u6124\u6012\u7684\u8bed\u6c14\uff0c\u58f0\u97f3\u63d0\u9ad8\u3001\u8bed\u6c14\u5f3a\u70c8\u3002"),
+        Map.entry("evil_talking", "\u7528\u6124\u6012\u7684\u8bed\u6c14\uff0c\u58f0\u97f3\u63d0\u9ad8\u3001\u8bed\u6c14\u5f3a\u70c8\u3002"),
+        Map.entry("smiling_evil", "\u7528\u5e73\u9759\u5374\u5a01\u80c1\u7684\u8bed\u6c14\u3002"),
+        Map.entry("crazy", "\u7528\u7d27\u5f20\u6050\u60e7\u7684\u8bed\u6c14\uff0c\u58f0\u97f3\u53d1\u6296\u3002"),
+        Map.entry("crazy_talking", "\u7528\u7d27\u5f20\u6050\u60e7\u7684\u8bed\u6c14\uff0c\u58f0\u97f3\u53d1\u6296\u3002"),
+        Map.entry("serious_1", "\u7528\u5e73\u9759\u4e25\u8083\u7684\u8bed\u6c14\u3002"),
+        Map.entry("serious_2", "\u7528\u4f4e\u6c89\u60b2\u4f24\u7684\u8bed\u6c14\u3002"),
+        Map.entry("serious_3", "\u7528\u5bb3\u6015\u7684\u8bed\u6c14\u3002"),
+        Map.entry("serious_talking", "\u7528\u5e73\u9759\u4e25\u8083\u7684\u8bed\u6c14\u3002"),
+        Map.entry("hurt", "\u7528\u60b2\u4f24\u4f4e\u843d\u7684\u8bed\u6c14\u3002"),
+        Map.entry("noface", "\u7528\u5e73\u9759\u6ca1\u6709\u60c5\u611f\u7684\u8bed\u6c14\u3002")
+    );
 
     private MimoTtsService() {
     }
 
-    public static void synthesizeAndPlay(String text, Player player, VerityEntity verity, Integer verityEntityId, long generation) {
-        String apiKey = (String) MimoAddonConfig.MIMO_API_KEY.get();
-        if (apiKey == null || apiKey.isBlank()) {
-            SpeechPlayback.clearActiveLine(generation);
-            MimoNotifier.notify(player, "Verity MiMo: no API key set. Mods \u2192 Verity MiMo Addon \u2192 paste a key from https://platform.xiaomimimo.com/#/console/api-keys");
+    public static boolean isActive() {
+        return Boolean.TRUE.equals(MimoAddonConfig.ENABLE_MIMO_TTS.get());
+    }
+
+    public static void synthesizeAndPlay(String text, Player player, VerityEntity verity) {
+        if (!Boolean.TRUE.equals(VerityConfig.USE_TTS.get())) {
             return;
         }
-        String stripped = EmotionTags.strip(text);
-        String emotion = EmotionDetector.detect(stripped, verity);
-        try {
-            if (!SpeechPlayback.isCurrent(generation)) {
-                SpeechPlayback.clearBusy(generation);
-                return;
-            }
-            String modelId;
-            String voiceValue;
-            if (MimoAddonConfig.MIMO_VOICE_MODE.get() == MimoAddonConfig.VoiceMode.VERITY_CLONE) {
-                voiceValue = MimoTtsService.loadCloneVoiceDataUrl();
-                if (voiceValue == null) {
-                    SpeechPlayback.clearActiveLine(generation);
-                    MimoNotifier.notify(player, "Verity MiMo: clone voice sample (intro.wav) not found in the mod jar. Falling back to the preset voice.");
-                    modelId = MODEL_ID;
-                    voiceValue = (String) MimoAddonConfig.MIMO_TTS_VOICE.get();
-                    if (voiceValue == null || voiceValue.isBlank()) {
-                        MimoNotifier.notify(player, "Verity MiMo: TTS voice is empty. Set one in the addon config (e.g. \u82cf\u6253).");
-                        return;
-                    }
-                } else {
-                    modelId = MODEL_ID_CLONE;
-                }
-            } else {
-                modelId = MODEL_ID;
-                voiceValue = (String) MimoAddonConfig.MIMO_TTS_VOICE.get();
-                if (voiceValue == null || voiceValue.isBlank()) {
-                    SpeechPlayback.clearActiveLine(generation);
-                    MimoNotifier.notify(player, "Verity MiMo: TTS voice is empty. Set one in the addon config (e.g. \u82cf\u6253).");
+        CompletableFuture.runAsync(() -> {
+            VerityApi.setCancelRequested(false);
+            try {
+                String apiKey = (String) MimoAddonConfig.MIMO_API_KEY.get();
+                if (apiKey == null || apiKey.isBlank()) {
+                    MimoNotifier.notify(player, "Verity MiMo: no API key set. Mods \u2192 Verity MiMo Addon \u2192 paste a key from https://platform.xiaomimimo.com/#/console/api-keys");
                     return;
                 }
+                String modelId;
+                String voice;
+                if (MimoAddonConfig.MIMO_VOICE_MODE.get() == MimoAddonConfig.VoiceMode.VERITY_CLONE) {
+                    voice = MimoTtsService.loadCloneVoiceDataUrl();
+                    if (voice == null) {
+                        MimoNotifier.notify(player, "Verity MiMo: clone voice sample (intro.wav) not found in the mod jar. Falling back to the preset voice.");
+                        modelId = MODEL_ID;
+                        voice = (String) MimoAddonConfig.MIMO_TTS_VOICE.get();
+                        if (voice == null || voice.isBlank()) {
+                            MimoNotifier.notify(player, "Verity MiMo: TTS voice is empty. Set it in the addon config (Mods \u2192 Verity MiMo Addon).");
+                            return;
+                        }
+                    } else {
+                        modelId = MODEL_ID_CLONE;
+                    }
+                } else {
+                    modelId = MODEL_ID;
+                    voice = (String) MimoAddonConfig.MIMO_TTS_VOICE.get();
+                    if (voice == null || voice.isBlank()) {
+                        MimoNotifier.notify(player, "Verity MiMo: TTS voice is empty. Set it in the addon config (Mods \u2192 Verity MiMo Addon).");
+                        return;
+                    }
+                }
+                String style = MimoTtsService.buildStyleInstruction(verity);
+                JsonObject body = MimoTtsService.buildRequestBody(text, style, voice, modelId);
+                String apiUrl = MimoAddonConfig.resolveApiUrl();
+                HttpRequest request = HttpRequest.newBuilder().uri(URI.create(apiUrl + "/chat/completions")).timeout(Duration.ofSeconds(90L)).header("api-key", apiKey).header("Authorization", "Bearer " + apiKey).header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(body.toString())).build();
+                HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30L)).build();
+                HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+                if (response.statusCode() != 200) {
+                    MimoNotifier.notify(player, "Verity MiMo TTS failed (HTTP " + response.statusCode() + "). Check the key or quota.");
+                    System.err.println("[Verity MiMo TTS Error]: " + response.statusCode() + " - " + response.body());
+                    return;
+                }
+                String audioData = MimoTtsService.extractAudioData(response.body());
+                if (audioData == null || audioData.isBlank()) {
+                    MimoNotifier.notify(player, "Verity MiMo TTS: response contained no audio.");
+                    return;
+                }
+                byte[] wavBytes = MimoTtsService.decodeBase64(audioData);
+                if (wavBytes == null || wavBytes.length == 0) {
+                    MimoNotifier.notify(player, "Verity MiMo TTS: could not decode audio.");
+                    return;
+                }
+                MimoTtsService.playWav(wavBytes, player, verity);
             }
-            JsonObject body = MimoTtsService.buildRequestBody(stripped, emotion, voiceValue, modelId);
-            HttpRequest request = HttpRequest.newBuilder().uri(URI.create(MimoAddonConfig.resolveApiUrl() + "/chat/completions")).timeout(Duration.ofSeconds(90L)).header("api-key", apiKey).header("Authorization", "Bearer " + apiKey).header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(body.toString())).build();
-            HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30L)).build();
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() != 200) {
-                SpeechPlayback.clearActiveLine(generation);
-                MimoNotifier.notify(player, "Verity MiMo TTS failed (HTTP " + response.statusCode() + "). Check the addon API key or your MiMo quota. Details: " + MimoTtsService.truncate(response.body()));
-                return;
+            catch (Exception e) {
+                if (verity != null) {
+                    verity.clientIsTalking = false;
+                }
+                MimoNotifier.notify(player, "Verity MiMo TTS connection failed: " + MimoTtsService.truncate(String.valueOf(e.getMessage())));
+                e.printStackTrace();
             }
-            String audioData = MimoTtsService.extractAudioData(response.body());
-            if (audioData == null || audioData.isBlank()) {
-                SpeechPlayback.clearActiveLine(generation);
-                MimoNotifier.notify(player, "Verity MiMo TTS: response contained no audio.");
-                return;
+        });
+    }
+
+    private static void playWav(byte[] wavBytes, Player player, VerityEntity verity) {
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(wavBytes);
+             AudioInputStream audioStream = AudioSystem.getAudioInputStream(new BufferedInputStream(bais));) {
+            AudioFormat format = audioStream.getFormat();
+            DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
+            try (SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info);) {
+                line.open(format);
+                line.start();
+                if (verity != null) {
+                    verity.clientIsTalking = true;
+                }
+                byte[] buffer = new byte[4096];
+                int bytesRead;
+                while ((bytesRead = audioStream.read(buffer)) != -1) {
+                    if (VerityApi.isCancelRequested()) {
+                        line.flush();
+                        break;
+                    }
+                    VerityApi.apply3DEffect(line, player, verity);
+                    line.write(buffer, 0, bytesRead);
+                }
+                if (!VerityApi.isCancelRequested()) {
+                    line.drain();
+                }
             }
-            byte[] wavBytes = MimoTtsService.decodeBase64(audioData);
-            if (wavBytes == null || wavBytes.length == 0) {
-                SpeechPlayback.clearActiveLine(generation);
-                MimoNotifier.notify(player, "Verity MiMo TTS: could not decode audio.");
-                return;
+            finally {
+                if (verity != null) {
+                    verity.clientIsTalking = false;
+                }
             }
-            if (!SpeechPlayback.isCurrent(generation)) {
-                SpeechPlayback.clearBusy(generation);
-                return;
-            }
-            SpeechPlayback.clearCancelForPlayback(generation);
-            WavPlayer.playStream(new ByteArrayInputStream(wavBytes), player, verity, verityEntityId, generation);
         }
         catch (Exception e) {
-            if (verity != null && SpeechPlayback.isCurrent(generation)) {
+            if (verity != null) {
                 verity.clientIsTalking = false;
             }
-            SpeechPlayback.clearActiveLine(generation);
-            MimoNotifier.notify(player, "Verity MiMo TTS connection failed: " + MimoTtsService.truncate(String.valueOf(e.getMessage())));
+            System.err.println("[Verity MiMo TTS] Failed to play audio.");
             e.printStackTrace();
         }
     }
 
-    private static JsonObject buildRequestBody(String text, String emotion, String voiceValue, String modelId) {
+    private static JsonObject buildRequestBody(String text, String style, String voice, String modelId) {
         JsonObject root = new JsonObject();
         root.addProperty("model", modelId);
         JsonArray messages = new JsonArray();
-        String style = MimoTtsService.buildStyleInstruction(emotion);
         if (style != null && !style.isBlank()) {
             JsonObject userMsg = new JsonObject();
             userMsg.addProperty("role", "user");
@@ -126,7 +184,7 @@ public final class MimoTtsService {
         root.add("messages", (JsonElement) messages);
         JsonObject audio = new JsonObject();
         audio.addProperty("format", "wav");
-        audio.addProperty("voice", voiceValue);
+        audio.addProperty("voice", voice);
         root.add("audio", (JsonElement) audio);
         root.addProperty("stream", false);
         return root;
@@ -156,13 +214,13 @@ public final class MimoTtsService {
         }
     }
 
-    private static String buildStyleInstruction(String emotion) {
+    private static String buildStyleInstruction(VerityEntity verity) {
         String custom = (String) MimoAddonConfig.MIMO_TTS_STYLE.get();
         String base;
         if (custom != null && !custom.isBlank()) {
             base = custom.trim();
         } else {
-            base = MimoTtsService.styleForEmotion(emotion);
+            base = MimoTtsService.variantStyle(verity);
         }
         double speed = (Double) MimoAddonConfig.MIMO_TTS_SPEED.get();
         StringBuilder sb = new StringBuilder(base == null ? "" : base);
@@ -174,26 +232,24 @@ public final class MimoTtsService {
         return sb.toString().trim();
     }
 
-    private static String styleForEmotion(String emotion) {
-        if (emotion == null) {
-            return null;
+    private static String variantStyle(VerityEntity verity) {
+        if (verity == null) {
+            return "";
         }
-        switch (emotion.toLowerCase(Locale.ROOT)) {
-            case "happy":
-            case "content":
-                return "\u7528\u5f00\u5fc3\u6109\u5feb\u7684\u8bed\u6c14\uff0c\u58f0\u97f3\u660e\u4eae\u6709\u6d3b\u529b\u3002";
-            case "calm":
-                return "\u7528\u5e73\u9759\u6e29\u548c\u7684\u8bed\u6c14\uff0c\u8bed\u901f\u8212\u7f13\u3002";
-            case "excited":
-                return "\u7528\u5174\u594b\u6fc0\u52a8\u7684\u8bed\u6c14\uff0c\u8bed\u901f\u504f\u5feb\uff0c\u58f0\u97f3\u9ad8\u4eae\u6709\u6d3b\u529b\u3002";
-            case "sad":
-                return "\u7528\u60b2\u4f24\u4f4e\u843d\u7684\u8bed\u6c14\uff0c\u58f0\u97f3\u4f4e\u6c89\u3002";
-            case "angry":
-                return "\u7528\u6124\u6012\u7684\u8bed\u6c14\uff0c\u58f0\u97f3\u63d0\u9ad8\u3001\u8bed\u6c14\u5f3a\u70c8\u3002";
-            case "scared":
-                return "\u7528\u5bb3\u6015\u7d27\u5f20\u7684\u8bed\u6c14\uff0c\u58f0\u97f3\u98a4\u6296\u6025\u4fc3\u3002";
-            default:
-                return null;
+        try {
+            String variant = verity.getVariant();
+            if (variant == null || variant.isBlank()) {
+                return "";
+            }
+            String normalized = variant.toLowerCase(Locale.ROOT);
+            if (normalized.endsWith(".png")) {
+                normalized = normalized.substring(0, normalized.length() - 4);
+            }
+            String style = VARIANT_STYLES.get(normalized);
+            return style == null ? "" : style;
+        }
+        catch (Throwable t) {
+            return "";
         }
     }
 
