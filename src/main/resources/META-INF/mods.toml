@@ -4,15 +4,17 @@ license="MIT"
 
 [[mods]]
 modId="verity_mimo_direct"
-version="1.2.1"
+version="1.3.0"
 displayName="Verity MiMo Direct"
 authors="Enderman112"
 description='''Adds Xiaomi MiMo TTS and ASR directly to Verity (no Smiley's Better Voice involved).
 
-- MiMo TTS: new "MIMO" option in Verity's Text To Speech Provider
-- MiMo ASR: new "MIMO" option in Verity's Recognition Provider (Chinese/English)
+- MiMo TTS: takes over Verity's speech (toggle in the "Xiaomi MiMo" category of Verity's own config)
+- MiMo ASR: takes over Verity's speech recognition (Chinese/English)
 - All MiMo settings appear in Verity's own config menu (new "Xiaomi MiMo" category)
+- 3D positional audio via Verity's apply3DEffect
 
+Built for Verity 6.0.0-beta.9, which routes all speech through varmite.verity.client.audio.TTSHandler.
 Get a MiMo API key at https://platform.xiaomimimo.com/#/console/api-keys'''
 
 [[mixins]]

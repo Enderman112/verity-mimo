@@ -18,11 +18,32 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 @Pseudo
 @Mixin(targets = "varmite.verity.VerityConfigUI", remap = false)
 public abstract class VerityConfigUIMixin {
+    /*
+     * Mixin matches only ONE method when a name without a descriptor is given
+     * (MemberInfo.getMaxMatchCount() -> Quantifier.DEFAULT clamps to 1).
+     * Verity beta.8 has a single createYACLScreen(Screen); beta.9 added a
+     * createYACLScreen(Screen, boolean) overload that holds the real body
+     * (the old one just delegates to it). Matching by bare name therefore
+     * landed on the delegating method, which has no category() call at all.
+     * Both descriptors are listed explicitly so each version is covered.
+     */
     @Redirect(
-        method = "createYACLScreen",
+        method = "createYACLScreen(Lnet/minecraft/client/gui/screens/Screen;)Lnet/minecraft/client/gui/screens/Screen;",
         at = @At(value = "INVOKE", target = "Ldev/isxander/yacl3/api/YetAnotherConfigLib$Builder;category(Ldev/isxander/yacl3/api/ConfigCategory;)Ldev/isxander/yacl3/api/YetAnotherConfigLib$Builder;"),
         remap = false, require = 0)
-    private static YetAnotherConfigLib.Builder mimo$appendCategory(YetAnotherConfigLib.Builder builder, ConfigCategory category) {
+    private static YetAnotherConfigLib.Builder mimo$appendCategoryLegacy(YetAnotherConfigLib.Builder builder, ConfigCategory category) {
+        return VerityConfigUIMixin.mimo$appendCategoryImpl(builder, category);
+    }
+
+    @Redirect(
+        method = "createYACLScreen(Lnet/minecraft/client/gui/screens/Screen;Z)Lnet/minecraft/client/gui/screens/Screen;",
+        at = @At(value = "INVOKE", target = "Ldev/isxander/yacl3/api/YetAnotherConfigLib$Builder;category(Ldev/isxander/yacl3/api/ConfigCategory;)Ldev/isxander/yacl3/api/YetAnotherConfigLib$Builder;"),
+        remap = false, require = 0)
+    private static YetAnotherConfigLib.Builder mimo$appendCategoryModern(YetAnotherConfigLib.Builder builder, ConfigCategory category) {
+        return VerityConfigUIMixin.mimo$appendCategoryImpl(builder, category);
+    }
+
+    private static YetAnotherConfigLib.Builder mimo$appendCategoryImpl(YetAnotherConfigLib.Builder builder, ConfigCategory category) {
         try {
             YetAnotherConfigLib.Builder b = builder.category(category);
             String name = category.name().getString();

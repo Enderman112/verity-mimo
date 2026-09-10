@@ -6,20 +6,22 @@
 
 | | Verity MiMo Addon | Verity MiMo Direct |
 |---|---|---|
-| 依赖 | Verity + Smiley's Better Voice | 仅 Verity（不用 BetterVoice） |
-| TTS 走 | BetterVoice 的分发逻辑 | Verity 自己的 `AiAPI.playTTS` |
-| ASR 走 | `AiAPI.transcribeAudio` | `AiAPI.transcribeAudio`（相同） |
-| 设置入口 | addon 自己的配置界面 | **Verity 自己的配置菜单**（新增 "Xiaomi MiMo" 分类） |
-| 3D 空间音效 | BetterVoice 的 WavPlayer | Verity 的 `AiAPI.apply3DEffect` |
+| 依赖 | Verity + Smiley's Better Voice beta.9 + Cloth Config 11.1.136+ | 仅 Verity（+ YACL） |
+| TTS 接入点 | `FishAudioManager.handleSpeech`（Better Voice 的内部入口） | `TTSHandler.playTTS` |
+| ASR 接入点 | `TTSHandler.transcribeAudio` | `TTSHandler.transcribeAudio`（相同） |
+| 设置入口 | addon 自己的 Cloth Config 界面 | **Verity 自己的配置菜单**（"Xiaomi MiMo" 分类） |
+| 音频播放 | 本 mod 自己播放（SourceDataLine） | 本 mod 自己播放（SourceDataLine） |
+| 3D 空间音效 | Verity 的 `TTSHandler.apply3DEffect` | Verity 的 `TTSHandler.apply3DEffect`（相同） |
 
-> 注意：这个方案要求**不要装 BetterVoice**（或把它关掉），否则它的 mixin 会抢 TTS。
+> 注意：**不要和 Verity MiMo Addon 同时安装**，两者都会接管 Verity 的 TTS。
 
 ## 原理（纯 Mixin，原 mod 不动）
 
-- `EnumHelper.addEnum` 给 Verity 的 `TTSProvider` / `STTProvider` 动态加 `MIMO`（Verity 菜单里的 Provider 下拉框会出现 MIMO）。
-- `AiAPI.playTTS`（HEAD）：选 MIMO 时转走本 mod 的 `MimoTtsService`。
-- `AiAPI.transcribeAudio`（HEAD）：选 MIMO 时转走本 mod 的 `MimoSttService`。
-- `VerityConfigUI.createYACLScreen`（Redirect `.category(...)`）：在 Verity 配置菜单末尾追加 "Xiaomi MiMo" 分类（key、音色、语速、风格、语言、base URL）。
+- `TTSHandler.playTTS`（HEAD，cancellable）：开启 MiMo 时转走本 mod 的 `MimoTtsService`。
+- `TTSHandler.transcribeAudio`（HEAD，cancellable）：开启 MiMo 时转走本 mod 的 `MimoSttService`。
+- `VerityConfigUI.createYACLScreen`（Redirect `Builder.category(...)`）：在 Verity 配置菜单末尾追加 "Xiaomi MiMo" 分类（key、音色、语速、风格、语言、base URL）。
+  - 显式写了两个重载的描述符：Verity beta.8 的 `createYACLScreen(Screen)` 与 beta.9 新增的 `createYACLScreen(Screen, boolean)`。**Mixin 在方法名不带描述符时只匹配第一个同名方法**（`Quantifier.DEFAULT` 的匹配上限被钳到 1），而 beta.9 的第一个重载只是委托、内部没有 `category()` 调用——所以必须写全描述符，否则注入点数为 0 且 `require = 0` 会静默跳过。
+- 打断与 3D 音效通过 `TTSHandler.cancelCurrentSpeech` / `TTSHandler.apply3DEffect`（反射调用，兼容不同版本）。
 
 ## 构建
 
@@ -29,8 +31,12 @@
 
 ## 安装
 
-1. `Verity-MiMo-Direct.jar` 放进 mods（需 Forge 47.x、YACL、Verity）。
+1. `Verity-MiMo-Direct.jar` 放进 mods（需 Forge 47.x、YACL 3.6+、Verity 6.0.0-beta.9）。
 2. 打开 Verity 配置界面 → 新增的 **Xiaomi MiMo** 分类填 `MiMo API Key`、选音色（默认 `苏打` 中文男声）。
-3. 在 **Voice Settings → Text To Speech Provider** 和 **Speech Recognition → Recognition Provider** 里选 **MIMO**。
-   （兜底：也可以在 Xiaomi MiMo 分类里开 `Enable MiMo TTS` / `Enable MiMo ASR` 开关。）
+3. 在同一分类里打开 `Enable MiMo TTS` / `Enable MiMo ASR`。
 4. 获得 MiMo key：https://platform.xiaomimimo.com/#/console/api-keys
+
+## 版本
+
+- **1.3.0** —— 适配 Verity 6.0.0-beta.9；修复 beta.9 上 "Xiaomi MiMo" 分类不显示的问题（`createYACLScreen` 新增重载导致 Redirect 命中委托方法）。
+- 1.2.1 —— 支持 Verity 6.0.0-beta.7（TTS/ASR 从 `AiAPI` 迁移到 `TTSHandler`）。
