@@ -46,7 +46,7 @@ side="CLIENT"
 modId="verity"
 mandatory=true
 versionRange="[6.0.0-beta,7)"
-ordering="BEFORE"
+ordering="AFTER"
 side="BOTH"
 
 [[dependencies.verity_mimo]]
