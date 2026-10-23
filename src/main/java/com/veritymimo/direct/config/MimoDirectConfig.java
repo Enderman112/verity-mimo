@@ -73,8 +73,8 @@ public final class MimoDirectConfig {
 
     static {
         ForgeConfigSpec.Builder builder = new ForgeConfigSpec.Builder();
-        ENABLE_MIMO_TTS = builder.comment("Enable Xiaomi MiMo TTS. Also enable by picking MIMO in Verity's Text To Speech Provider.").define("enableMimoTts", false);
-        ENABLE_MIMO_ASR = builder.comment("Enable Xiaomi MiMo Speech Recognition. Also enable by picking MIMO in Verity's Recognition Provider.").define("enableMimoAsr", false);
+        ENABLE_MIMO_TTS = builder.comment("Enable Xiaomi MiMo TTS. While on, MiMo handles every line Verity would synthesize (Verity's Use Text To Speech must also be on).").define("enableMimoTts", false);
+        ENABLE_MIMO_ASR = builder.comment("Enable Xiaomi MiMo Speech Recognition. While on, MiMo transcribes microphone input instead of Verity's local/Groq engine.").define("enableMimoAsr", false);
         MIMO_API_KEY = builder.comment("Xiaomi MiMo API key. Pay-as-you-go keys start with sk-, Token Plan keys start with tp- (https://platform.xiaomimimo.com/#/console/api-keys or Token Plan page).").define("mimoApiKey", "");
         MIMO_PLAN = builder.comment("MiMo account type: PAYG (\u6309\u91cf\u4ed8\u8d39, sk- keys) or TOKEN_PLAN (tp- keys).").defineEnum("mimoPlan", MimoPlan.PAYG);
         MIMO_CLUSTER = builder.comment("Token Plan server cluster (only used when plan = TOKEN_PLAN): CN (\u4e2d\u56fd), SINGAPORE (\u65b0\u52a0\u5761) or AMSTERDAM (\u6b27\u6d32).").defineEnum("mimoCluster", MimoCluster.CN);
@@ -83,7 +83,7 @@ public final class MimoDirectConfig {
         MIMO_TTS_SPEED = builder.comment("MiMo TTS speech speed (0.5 to 2.0).").defineInRange("mimoTtsSpeed", 1.0, 0.5, 2.0);
         MIMO_TTS_STYLE = builder.comment("Optional natural-language speaking style for MiMo TTS. Leave empty to auto-generate from Verity's expression.").define("mimoTtsStyle", "");
         MIMO_STT_LANGUAGE = builder.comment("MiMo ASR language: zh (Chinese), en (English) or auto.").define("mimoSttLanguage", "zh");
-        MIMO_VOICE_MODE = builder.comment("MiMo TTS voice source: MIMO_PRESET uses the preset voice above; VERITY_CLONE uses the bundled intro.ogg sample (converted to WAV) to clone Verity's in-game voice via the mimo-v2.5-tts-voiceclone model.").defineEnum("mimoVoiceMode", VoiceMode.MIMO_PRESET);
+        MIMO_VOICE_MODE = builder.comment("MiMo TTS voice source: MIMO_PRESET uses the preset voice above; VERITY_CLONE uses the bundled intro sample to clone Verity's in-game voice via the mimo-v2.5-tts-voiceclone model.").defineEnum("mimoVoiceMode", VoiceMode.MIMO_PRESET);
         SPEC = builder.build();
     }
 
