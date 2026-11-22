@@ -4,7 +4,7 @@ license="MIT"
 
 [[mods]]
 modId="verity_mimo"
-version="1.5.0"
+version="1.5.1"
 displayName="Verity MiMo Addon"
 authors="Enderman112"
 description='''Adds Xiaomi MiMo TTS and ASR to Verity + Smiley's Better Voice without modifying either mod.
@@ -14,8 +14,10 @@ Features:
 - MiMo ASR: takes over Verity's speech recognition (Chinese/English)
 - Configure API key, voice, speed, style and language in this addon's own config screen
 
-Built for Verity 6.0.0-beta.9 and Smiley's Better Voice 6.0.0-beta.9. Better Voice is optional:
-use Verity-MiMo-Direct instead when you do not want it installed.
+Requires Verity 6.0.0-beta.9 AND Smiley's Better Voice 6.0.0-beta.9: the TTS hook lives
+inside Better Voice's handleSpeech, so the addon cannot work without it, and Better
+Voice beta.9 itself only accepts Verity 6.0.0-beta.9. On Verity 6.0.0 use
+Verity-MiMo-Direct instead.
 Get a MiMo API key at https://platform.xiaomimimo.com/#/console/api-keys'''
 
 [[mixins]]
@@ -45,13 +47,13 @@ side="CLIENT"
 [[dependencies.verity_mimo]]
 modId="verity"
 mandatory=true
-versionRange="[6.0.0-beta,7)"
+versionRange="[6.0.0-beta.9]"
 ordering="AFTER"
 side="BOTH"
 
 [[dependencies.verity_mimo]]
 modId="smileys_better_voice"
-mandatory=false
-versionRange="[6.0.0-beta,7)"
+mandatory=true
+versionRange="[6.0.0-beta.9]"
 ordering="AFTER"
 side="CLIENT"

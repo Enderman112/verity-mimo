@@ -13,6 +13,8 @@ public final class VerityApi {
         "varmite.verity.entity.LLM.AiAPI"
     };
     private static Class<?> aiApi;
+    private static Method sanitizeTranscript;
+    private static boolean sanitizeTranscriptResolved;
 
     private VerityApi() {
     }
@@ -69,5 +71,45 @@ public final class VerityApi {
         }
         catch (Throwable ignored) {
         }
+    }
+
+    /**
+     * Post-processes a transcript exactly like Verity does for its own STT providers.
+     *
+     * <p>Verity 6.0.0 added {@code TTSHandler.sanitizeTranscript(String)} (it repairs
+     * names such as "verity/birdie/..." that speech models mishear) and calls it at the
+     * end of {@code transcribeAudio}. The MiMo mixin returns from HEAD, so without this
+     * call MiMo transcripts would skip that cleanup. The method did not exist on
+     * 6.0.0-beta.x, hence the reflective, optional lookup.
+     */
+    public static String sanitizeTranscript(String text) {
+        if (text == null || text.isBlank()) {
+            return text;
+        }
+        Method m = VerityApi.sanitizeMethod();
+        if (m == null) {
+            return text;
+        }
+        try {
+            Object result = m.invoke(null, text);
+            return result instanceof String ? (String) result : text;
+        }
+        catch (Throwable ignored) {
+            return text;
+        }
+    }
+
+    private static Method sanitizeMethod() {
+        if (!sanitizeTranscriptResolved) {
+            sanitizeTranscriptResolved = true;
+            try {
+                sanitizeTranscript = Class.forName("varmite.verity.client.audio.TTSHandler")
+                    .getMethod("sanitizeTranscript", String.class);
+            }
+            catch (Throwable ignored) {
+                sanitizeTranscript = null;
+            }
+        }
+        return sanitizeTranscript;
     }
 }
