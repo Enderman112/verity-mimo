@@ -25,6 +25,9 @@ public final class MimoSttService {
     }
 
     public static String transcribe(byte[] pcmData, AudioFormat format) {
+        if (MimoAddonConfig.STT_BACKEND.get() == MimoAddonConfig.SttBackend.DEEPSEEK) {
+            return DeepSeekSttService.transcribe(pcmData, format);
+        }
         if (pcmData == null || pcmData.length == 0 || format == null || format.getFrameSize() <= 0) {
             System.err.println("[Verity MiMo ASR] empty/invalid recording (pcm=" + (pcmData == null ? "null" : String.valueOf(pcmData.length)) + " bytes, format=" + (format == null ? "null" : format.toString()) + ")");
             return "";

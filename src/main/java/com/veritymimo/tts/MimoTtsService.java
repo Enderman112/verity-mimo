@@ -7,8 +7,6 @@ import com.google.gson.JsonParser;
 import com.veritymimo.MimoNotifier;
 import com.veritymimo.VerityApi;
 import com.veritymimo.config.MimoAddonConfig;
-import java.io.BufferedInputStream;
-import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -19,11 +17,6 @@ import java.util.Base64;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import javax.sound.sampled.AudioFormat;
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.DataLine;
-import javax.sound.sampled.SourceDataLine;
 import net.minecraft.world.entity.player.Player;
 import varmite.verity.VerityConfig;
 import varmite.verity.entity.verity.VerityEntity;
@@ -60,6 +53,10 @@ public final class MimoTtsService {
     }
 
     public static void synthesizeAndPlay(String text, Player player, VerityEntity verity) {
+        if (MimoAddonConfig.TTS_BACKEND.get() == MimoAddonConfig.TtsBackend.DEEPSEEK) {
+            DeepSeekTtsService.synthesizeAndPlay(text, player, verity);
+            return;
+        }
         if (!Boolean.TRUE.equals(VerityConfig.USE_TTS.get())) {
             return;
         }
@@ -115,56 +112,14 @@ public final class MimoTtsService {
                     MimoNotifier.notify(player, "Verity MiMo TTS: could not decode audio.");
                     return;
                 }
-                MimoTtsService.playWav(wavBytes, player, verity);
+                TtsPlayback.playWav(wavBytes, player, verity);
             }
             catch (Exception e) {
-                if (verity != null) {
-                    verity.clientIsTalking = false;
-                }
+                TtsPlayback.clearTalkingIfIdle(verity);
                 MimoNotifier.notify(player, "Verity MiMo TTS connection failed: " + MimoTtsService.truncate(String.valueOf(e.getMessage())));
                 e.printStackTrace();
             }
         });
-    }
-
-    private static void playWav(byte[] wavBytes, Player player, VerityEntity verity) {
-        try (ByteArrayInputStream bais = new ByteArrayInputStream(wavBytes);
-             AudioInputStream audioStream = AudioSystem.getAudioInputStream(new BufferedInputStream(bais));) {
-            AudioFormat format = audioStream.getFormat();
-            DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
-            try (SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info);) {
-                line.open(format);
-                line.start();
-                if (verity != null) {
-                    verity.clientIsTalking = true;
-                }
-                byte[] buffer = new byte[4096];
-                int bytesRead;
-                while ((bytesRead = audioStream.read(buffer)) != -1) {
-                    if (VerityApi.isCancelRequested()) {
-                        line.flush();
-                        break;
-                    }
-                    VerityApi.apply3DEffect(line, player, verity);
-                    line.write(buffer, 0, bytesRead);
-                }
-                if (!VerityApi.isCancelRequested()) {
-                    line.drain();
-                }
-            }
-            finally {
-                if (verity != null) {
-                    verity.clientIsTalking = false;
-                }
-            }
-        }
-        catch (Exception e) {
-            if (verity != null) {
-                verity.clientIsTalking = false;
-            }
-            System.err.println("[Verity MiMo TTS] Failed to play audio.");
-            e.printStackTrace();
-        }
     }
 
     private static JsonObject buildRequestBody(String text, String style, String voice, String modelId) {

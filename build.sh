@@ -15,7 +15,10 @@ echo "== compiling stubs =="
 javac --release 17 -d build/stubs-classes $(find "$STUBS_SRC" -name '*.java')
 
 echo "== compiling sources =="
-javac --release 17 -encoding UTF-8 -cp "build/stubs-classes:$CP_LIBS" -d build/classes \
+# -proc:none: the Mixin annotation processor needs asm-tree on the processor
+# path (it throws NoClassDefFoundError without it) and is not required here.
+# The refmap shipped in resources is the empty static {} the mixins expect.
+javac --release 17 -proc:none -encoding UTF-8 -cp "build/stubs-classes:$CP_LIBS" -d build/classes \
   $(find "$SRC" -name '*.java')
 
 echo "== packaging jar =="
