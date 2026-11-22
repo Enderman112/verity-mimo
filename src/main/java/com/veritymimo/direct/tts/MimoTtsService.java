@@ -7,8 +7,6 @@ import com.google.gson.JsonParser;
 import com.veritymimo.direct.MimoDirectNotifier;
 import com.veritymimo.direct.VerityApi;
 import com.veritymimo.direct.config.MimoDirectConfig;
-import java.io.BufferedInputStream;
-import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -19,11 +17,6 @@ import java.util.Base64;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import javax.sound.sampled.AudioFormat;
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.DataLine;
-import javax.sound.sampled.SourceDataLine;
 import net.minecraft.world.entity.player.Player;
 import varmite.verity.VerityConfig;
 import varmite.verity.entity.verity.VerityEntity;
@@ -33,8 +26,6 @@ public final class MimoTtsService {
     private static final String MODEL_ID_CLONE = "mimo-v2.5-tts-voiceclone";
     private static final String CLONE_SAMPLE_PATH = "/assets/verity_mimo_direct/voices/intro.wav";
     private static String cloneVoiceDataUrl;
-    private static final Object PLAYBACK_LOCK = new Object();
-    private static SourceDataLine activeLine;
     private static volatile HttpClient httpClient;
     private static final Map<String, String> VARIANT_STYLES = Map.ofEntries(
         Map.entry("happy", "\u7528\u5f00\u5fc3\u6109\u5feb\u7684\u8bed\u6c14\uff0c\u58f0\u97f3\u660e\u4eae\u6709\u6d3b\u529b\u3002"),
@@ -63,6 +54,10 @@ public final class MimoTtsService {
     }
 
     public static void synthesizeAndPlay(String text, Player player, VerityEntity verity) {
+        if (MimoDirectConfig.TTS_BACKEND.get() == MimoDirectConfig.TtsBackend.DEEPSEEK) {
+            DeepSeekTtsService.synthesizeAndPlay(text, player, verity);
+            return;
+        }
         if (!Boolean.TRUE.equals(VerityConfig.USE_TTS.get())) {
             return;
         }
@@ -120,119 +115,14 @@ public final class MimoTtsService {
                     MimoDirectNotifier.notify(player, "Verity MiMo TTS: could not decode audio.");
                     return;
                 }
-                MimoTtsService.playWav(wavBytes, player, verity);
+                TtsPlayback.playWav(wavBytes, player, verity);
             }
             catch (Exception e) {
-                MimoTtsService.clearTalkingIfIdle(verity);
+                TtsPlayback.clearTalkingIfIdle(verity);
                 MimoDirectNotifier.notify(player, "Verity MiMo TTS connection failed: " + MimoTtsService.truncate(String.valueOf(e.getMessage())));
                 e.printStackTrace();
             }
         });
-    }
-
-    private static void playWav(byte[] wavBytes, Player player, VerityEntity verity) {
-        SourceDataLine line = null;
-        try (ByteArrayInputStream bais = new ByteArrayInputStream(wavBytes);
-             AudioInputStream audioStream = AudioSystem.getAudioInputStream(new BufferedInputStream(bais));) {
-            AudioFormat format = audioStream.getFormat();
-            DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
-            // Stop the previous MiMo line first: Verity can send a new line before the
-            // previous one finished (it does not call interruptSpeech on the client),
-            // and SourceDataLine is exclusive, so opening a second line would fail.
-            MimoTtsService.stopActivePlayback();
-            line = (SourceDataLine) AudioSystem.getLine(info);
-            line.open(format);
-            line.start();
-            MimoTtsService.activatePlayback(line, verity);
-            byte[] buffer = new byte[4096];
-            int bytesRead;
-            while ((bytesRead = audioStream.read(buffer)) != -1) {
-                if (VerityApi.isCancelRequested()) {
-                    line.flush();
-                    break;
-                }
-                VerityApi.apply3DEffect(line, player, verity);
-                line.write(buffer, 0, bytesRead);
-            }
-            if (!VerityApi.isCancelRequested()) {
-                line.drain();
-            }
-        }
-        catch (Exception e) {
-            if (!MimoTtsService.wasSuperseded(line) && (line == null || line.isOpen())) {
-                System.err.println("[Verity MiMo TTS] Failed to play audio.");
-                e.printStackTrace();
-            }
-        }
-        finally {
-            MimoTtsService.releasePlayback(line, verity);
-            if (line != null) {
-                try {
-                    line.close();
-                }
-                catch (Throwable ignored) {
-                }
-            }
-        }
-    }
-
-    private static void stopActivePlayback() {
-        SourceDataLine line;
-        synchronized (PLAYBACK_LOCK) {
-            line = activeLine;
-            activeLine = null;
-        }
-        if (line != null) {
-            try {
-                line.stop();
-            }
-            catch (Throwable ignored) {
-            }
-            try {
-                line.flush();
-            }
-            catch (Throwable ignored) {
-            }
-            try {
-                line.close();
-            }
-            catch (Throwable ignored) {
-            }
-        }
-    }
-
-    private static void activatePlayback(SourceDataLine line, VerityEntity verity) {
-        synchronized (PLAYBACK_LOCK) {
-            activeLine = line;
-            if (verity != null) {
-                verity.clientIsTalking = true;
-            }
-        }
-    }
-
-    private static boolean wasSuperseded(SourceDataLine line) {
-        synchronized (PLAYBACK_LOCK) {
-            return activeLine != null && activeLine != line;
-        }
-    }
-
-    private static void releasePlayback(SourceDataLine line, VerityEntity verity) {
-        synchronized (PLAYBACK_LOCK) {
-            if (line != null && activeLine == line) {
-                activeLine = null;
-                if (verity != null) {
-                    verity.clientIsTalking = false;
-                }
-            }
-        }
-    }
-
-    private static void clearTalkingIfIdle(VerityEntity verity) {
-        synchronized (PLAYBACK_LOCK) {
-            if (verity != null && activeLine == null) {
-                verity.clientIsTalking = false;
-            }
-        }
     }
 
     private static HttpClient httpClient() {

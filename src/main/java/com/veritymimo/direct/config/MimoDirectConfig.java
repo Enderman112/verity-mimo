@@ -15,6 +15,11 @@ public final class MimoDirectConfig {
     public static final ForgeConfigSpec.ConfigValue<String> MIMO_TTS_STYLE;
     public static final ForgeConfigSpec.ConfigValue<String> MIMO_STT_LANGUAGE;
     public static final ForgeConfigSpec.EnumValue<VoiceMode> MIMO_VOICE_MODE;
+    public static final ForgeConfigSpec.EnumValue<TtsBackend> TTS_BACKEND;
+    public static final ForgeConfigSpec.EnumValue<SttBackend> STT_BACKEND;
+    public static final ForgeConfigSpec.ConfigValue<String> DEEPSEEK_API_KEY;
+    public static final ForgeConfigSpec.ConfigValue<String> DEEPSEEK_BASE_URL;
+    public static final ForgeConfigSpec.EnumValue<DeepSeekVoice> DEEPSEEK_TTS_VOICE;
 
     public enum VoiceMode {
         MIMO_PRESET("MiMo preset voice"),
@@ -68,6 +73,57 @@ public final class MimoDirectConfig {
         }
     }
 
+    public enum TtsBackend {
+        MIMO("Xiaomi MiMo"),
+        DEEPSEEK("DeepSeek");
+
+        private final String displayName;
+
+        TtsBackend(String displayName) {
+            this.displayName = displayName;
+        }
+
+        public String displayName() {
+            return this.displayName;
+        }
+    }
+
+    public enum SttBackend {
+        MIMO("Xiaomi MiMo"),
+        DEEPSEEK("DeepSeek");
+
+        private final String displayName;
+
+        SttBackend(String displayName) {
+            this.displayName = displayName;
+        }
+
+        public String displayName() {
+            return this.displayName;
+        }
+    }
+
+    public enum DeepSeekVoice {
+        STELLA("stella", "\u6d77\u661f (\u5973\u58f0)"),
+        TIDE("tide", "\u6697\u6f6e (\u7537\u58f0)");
+
+        private final String id;
+        private final String displayName;
+
+        DeepSeekVoice(String id, String displayName) {
+            this.id = id;
+            this.displayName = displayName;
+        }
+
+        public String id() {
+            return this.id;
+        }
+
+        public String displayName() {
+            return this.displayName;
+        }
+    }
+
     private MimoDirectConfig() {
     }
 
@@ -84,6 +140,11 @@ public final class MimoDirectConfig {
         MIMO_TTS_STYLE = builder.comment("Optional natural-language speaking style for MiMo TTS. Leave empty to auto-generate from Verity's expression.").define("mimoTtsStyle", "");
         MIMO_STT_LANGUAGE = builder.comment("MiMo ASR language: zh (Chinese), en (English) or auto.").define("mimoSttLanguage", "zh");
         MIMO_VOICE_MODE = builder.comment("MiMo TTS voice source: MIMO_PRESET uses the preset voice above; VERITY_CLONE uses the bundled intro sample to clone Verity's in-game voice via the mimo-v2.5-tts-voiceclone model.").defineEnum("mimoVoiceMode", VoiceMode.MIMO_PRESET);
+        TTS_BACKEND = builder.comment("TTS backend: MIMO (Xiaomi MiMo) or DEEPSEEK (DeepSeek /v1/tools/tts). Speech speed and clone voice only apply to MiMo.").defineEnum("ttsBackend", TtsBackend.MIMO);
+        STT_BACKEND = builder.comment("Speech recognition backend: MIMO (Xiaomi MiMo) or DEEPSEEK (DeepSeek /v1/tools/asr, language is detected automatically).").defineEnum("sttBackend", SttBackend.MIMO);
+        DEEPSEEK_API_KEY = builder.comment("DeepSeek API key (https://platform.deepseek.com/api_keys). Only used when a backend above is set to DEEPSEEK.").define("deepseekApiKey", "");
+        DEEPSEEK_BASE_URL = builder.comment("Optional custom DeepSeek base URL. Leave empty for https://api.deepseek.com (do not include /v1).").define("deepseekBaseUrl", "");
+        DEEPSEEK_TTS_VOICE = builder.comment("DeepSeek TTS voice: STELLA (\u6d77\u661f, female) or TIDE (\u6697\u6f6e, male).").defineEnum("deepseekTtsVoice", DeepSeekVoice.STELLA);
         SPEC = builder.build();
     }
 
@@ -100,5 +161,20 @@ public final class MimoDirectConfig {
             return "https://token-plan-" + MIMO_CLUSTER.get().code() + ".xiaomimimo.com/v1";
         }
         return "https://api.xiaomimimo.com/v1";
+    }
+
+    public static String resolveDeepSeekUrl() {
+        String custom = DEEPSEEK_BASE_URL.get();
+        if (custom != null && !custom.isBlank()) {
+            String trimmed = custom.trim();
+            while (trimmed.endsWith("/")) {
+                trimmed = trimmed.substring(0, trimmed.length() - 1);
+            }
+            if (trimmed.endsWith("/v1")) {
+                trimmed = trimmed.substring(0, trimmed.length() - 3);
+            }
+            return trimmed;
+        }
+        return "https://api.deepseek.com";
     }
 }
