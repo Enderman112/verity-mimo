@@ -45,6 +45,7 @@
 
 ## 版本
 
+- **1.5.1** —— 与 Addon 版同步版本号（Addon 1.5.1 收紧了对 Verity / Smiley's Better Voice 的版本依赖并把 ASR 接上 `sanitizeTranscript`；Direct 版本来就只依赖 Verity 6.0.0，代码无改动）。
 - **1.5.0** —— TTS/ASR 后端可切换：新增 `ttsBackend` / `sttBackend`（`MIMO` 或 `DEEPSEEK`）与 `deepseekApiKey` / `deepseekBaseUrl` / `deepseekTtsVoice`；新增 `DeepSeekTtsService`（`POST /v1/tools/tts`，直接返回 wav 字节）与 `DeepSeekSttService`（`POST /v1/tools/asr`，multipart 上传、语言自动识别）；播放层抽为 `TtsPlayback` 供两个后端共用。默认后端仍是 MiMo。
 - 1.4.1 —— 适配 Verity 6.0.0；ASR 结果补走 Verity 的 `sanitizeTranscript`；hook 只保留 `TTSHandler` 并把 `require` 提高到 1（版本再改时直接报错而不是静默失效）；连续语音不再叠音；复用 HttpClient；修正配置界面里 "去 Provider 里选 MIMO" 的过时说明、空文本仍触发合成的边界、语速滑块在 0.95–1.05 之外才生效的问题。
 - 1.3.0 —— 适配 Verity 6.0.0-beta.9；修复 beta.9 上 "Xiaomi MiMo" 分类不显示的问题（`createYACLScreen` 新增重载导致 Redirect 命中委托方法）。
